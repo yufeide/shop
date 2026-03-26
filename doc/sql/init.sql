@@ -156,6 +156,23 @@ CREATE TABLE `user_address` (
                                 KEY `idx_is_default` (`is_default`) -- 查询默认地址（高频场景）
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户地址表';
 
+-- 接口调用记录表
+CREATE TABLE IF NOT EXISTS `api_call_record` (
+                                                 `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+                                                 `class_name` varchar(255) DEFAULT NULL COMMENT '类名',
+                                                 `method_name` varchar(255) DEFAULT NULL COMMENT '方法名',
+                                                 `api_desc` varchar(255) DEFAULT NULL COMMENT '接口描述',
+                                                 `cost_time` bigint(20) DEFAULT NULL COMMENT '耗时(ms)',
+                                                 `call_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '调用时间',
+                                                 `user_id` varchar(50) DEFAULT NULL COMMENT '用户ID',
+                                                 `request_params` text COMMENT '请求参数',
+                                                 `response_status` varchar(50) DEFAULT NULL COMMENT '响应状态',
+                                                 PRIMARY KEY (`id`),
+                                                 KEY `idx_call_time` (`call_time`),
+                                                 KEY `idx_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='接口调用记录表';
+
+
 -- ----------------------------
 -- 初始化测试地址数据（可选）
 -- ----------------------------
