@@ -165,6 +165,7 @@
 			<artifactId>langchain4j-document-parser-apache-pdfbox</artifactId>
 			<version>0.35.0</version>
 		</dependency>
+
 	</dependencies>
 
 	<build>

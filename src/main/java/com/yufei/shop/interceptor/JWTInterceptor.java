@@ -1,11 +1,14 @@
 package com.yufei.shop.interceptor;
 
-import ch.qos.logback.classic.Logger;
+import cn.hutool.core.bean.BeanUtil;
+import com.yufei.shop.exception.UserException;
 import com.yufei.shop.util.JwtUtil;
 import com.yufei.shop.util.ThreadLocalUtil;
 import io.jsonwebtoken.*;
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
 
@@ -13,16 +16,24 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 通用JWT拦截器
  * 核心功能：解析请求头中的JWT Token，验证Token有效性，提取用户ID存入请求上下文
  */
 @Slf4j
+@AllArgsConstructor
 public class JWTInterceptor implements HandlerInterceptor {
 
     @Autowired
     private ThreadLocalUtil threadLocalUtil;
+
+    private static final String TOKEN = "user:login:";
+
+    private final StringRedisTemplate stringRedisTemplate;
+
+
 
 
     // 拦截器前置处理（接口执行前执行，核心校验逻辑）
@@ -44,10 +55,24 @@ public class JWTInterceptor implements HandlerInterceptor {
         try {
             // 4. 验证Token有效性（签名、过期时间）
             // 复用工具类解析用户ID（简化拦截器代码）
+            Long userIdFromUserTokenFromRedis = 0L;
             Long userId = JwtUtil.getUserIdFromToken(token);
-            threadLocalUtil.set("userId",userId);
+            String userTokenFromRedis = stringRedisTemplate.opsForValue().get(TOKEN);
+            if(userTokenFromRedis != null){
+                userIdFromUserTokenFromRedis = Long.valueOf(JwtUtil.getUserIdFromToken(userTokenFromRedis));
+            }
+            ThreadLocalUtil.set("userId",userId);
             request.setAttribute("currentUserId", userId);
-            return true;
+
+            log.info("userid,userIdFromUserTokenFromRedis{}{}",userId,userIdFromUserTokenFromRedis);
+
+            if(userId == userIdFromUserTokenFromRedis){
+                //token滑动续期的关键实现
+                stringRedisTemplate.expire(TOKEN,120, TimeUnit.MINUTES);
+                return true;
+            }else{
+                throw new UserException("登录信息异常");
+            }
 
         } catch (Exception e) {
             // 8. Token校验失败（过期、签名错误、非法Token等），返回401
@@ -58,6 +83,8 @@ public class JWTInterceptor implements HandlerInterceptor {
                 errorMsg = "Token签名错误，非法请求";
             } else if (e instanceof MalformedJwtException) {
                 errorMsg = "Token格式错误，非法请求";
+            }else if(e instanceof UserException){
+                errorMsg = e.getMessage();
             }
             returnJson(response, "{\"code\":401,\"msg\":\"" + errorMsg + "\",\"data\":null}");
             return false;
@@ -90,4 +117,3 @@ public class JWTInterceptor implements HandlerInterceptor {
         writer.close();
     }
 }
-

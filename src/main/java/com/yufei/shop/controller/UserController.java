@@ -8,7 +8,9 @@ import com.yufei.shop.annotation.RequirePermission;
 import com.yufei.shop.annotation.TotalTime;
 import com.yufei.shop.entity.Result;
 import com.yufei.shop.entity.User;
+import com.yufei.shop.entity.UserAddress;
 import com.yufei.shop.exception.UserException;
+import com.yufei.shop.service.UserAddressService;
 import com.yufei.shop.service.UserService;
 import com.yufei.shop.util.JwtUtil;
 import io.swagger.annotations.Api;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @AllArgsConstructor
 @Api(tags = "用户相关接口",description = "默认操作包含用户增删改查")
@@ -30,10 +33,12 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
+    private final UserAddressService userAddressService;
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
 
-    private static final String EMAIL_CODE_PREFIX = "email:code:";
+    private static final String EMAIL_CODE_PREFIX = "email:code:";//验证码key
+    private static final String TOKEN = "user:login:";//用户token key
 
     /**
      * 登录接口：生成Token返回给前端
@@ -50,7 +55,9 @@ public class UserController {
             Long userId = user.getId(); // 模拟查询到的用户ID
             // 2. 调用工具类生成Token
             String token = JwtUtil.generateToken(userId);
-            // 3. 返回Token给前端（前端存储在localStorage/cookie中）
+            //3 把用户token存入redis为后续校验登陆状态提供数据支持
+            stringRedisTemplate.opsForValue().set(TOKEN,token,30, TimeUnit.MINUTES);
+            // 4. 返回Token给前端（前端存储在localStorage/cookie中）
             return Result.success("登录成功",token);
         }
         return Result.fail("登陆失败");
@@ -110,5 +117,13 @@ public class UserController {
 
         stringRedisTemplate.delete(key);
         return Result.success("验证码验证成功");
+    }
+
+    @ApiOperation(value = "根据用户id查询所有的地址信息")
+    @GetMapping("/get/userAddress")
+    public Result<List<UserAddress>> getUserAddress(@RequestParam Long userId){
+
+        List<UserAddress> addressList = userAddressService.getUserAddressList(userId);
+        return Result.success(addressList);
     }
 }

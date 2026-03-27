@@ -1,7 +1,11 @@
 package com.yufei.shop.config;
 
+import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import com.yufei.shop.interceptor.JWTInterceptor;
+import com.yufei.shop.util.ThreadLocalUtil;
+import lombok.AllArgsConstructor;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -10,7 +14,11 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  * 核心：让JWTInterceptor生效，并控制哪些接口需要校验Token
  */
 @Configuration // 必须加该注解，Spring才能识别为配置类
+@AllArgsConstructor
 public class WebMvcConfig implements WebMvcConfigurer {
+
+    private final StringRedisTemplate stringRedisTemplate;
+    private final ThreadLocalUtil threadLocalUtil;
 
     /**
      * 注册拦截器核心方法
@@ -18,7 +26,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         // 1. 注册JWT拦截器
-        registry.addInterceptor(new JWTInterceptor())
+        registry.addInterceptor(new JWTInterceptor(threadLocalUtil,stringRedisTemplate))
                 // 2. 设置需要拦截的接口路径（支持Ant风格通配符）
                 .addPathPatterns("/api/**") // 拦截所有/api开头的接口（需登录）
                 // 3. 设置不需要拦截的接口路径（放行登录、注册、静态资源等）
